@@ -124,11 +124,23 @@ export const useGameStore = create<GameState & GameActions>()(
         const cost = getUpgradeCost(reno)
         if (state.gold < cost) return
 
+        const repGain = reno.bonusReputation
+
         set((s) => ({
           gold: s.gold - cost,
+          reputation: Math.min(100, s.reputation + repGain),
           renovations: s.renovations.map((r) =>
             r.id === renoId ? { ...r, level: r.level + 1 } : r
           ),
+          reputationHistory: [
+            ...s.reputationHistory,
+            {
+              day: s.day,
+              value: Math.min(100, s.reputation + repGain),
+              delta: repGain,
+              reason: `装修升级：${reno.name}`,
+            },
+          ],
         }))
         get().addLedgerRecord('支出', '装修升级', cost, `升级${reno.name}至${reno.level + 1}级`)
       },
@@ -230,10 +242,13 @@ export const useGameStore = create<GameState & GameActions>()(
           satisfaction: Math.max(0, Math.min(100, c.satisfaction + option.satisfactionEffect)),
         }))
 
+        const newReputation = Math.max(0, Math.min(100, state.reputation + option.reputationEffect))
+
         set({
           currentInterruption: null,
           customers,
           gold: state.gold + option.goldEffect,
+          reputation: newReputation,
         })
 
         if (option.goldEffect !== 0) {
@@ -243,6 +258,20 @@ export const useGameStore = create<GameState & GameActions>()(
             Math.abs(option.goldEffect),
             option.text.slice(0, 20)
           )
+        }
+
+        if (option.reputationEffect !== 0) {
+          set((s) => ({
+            reputationHistory: [
+              ...s.reputationHistory,
+              {
+                day: s.day,
+                value: newReputation,
+                delta: option.reputationEffect,
+                reason: option.reputationEffect > 0 ? '插话应对得当' : '插话处理失当',
+              },
+            ],
+          }))
         }
       },
 
